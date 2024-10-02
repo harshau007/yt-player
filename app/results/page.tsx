@@ -1,4 +1,3 @@
-import Search from "@/components/search";
 import SearchResults from "@/components/search-results";
 
 export default function ResultsPage({
@@ -8,7 +7,6 @@ export default function ResultsPage({
 }) {
   return (
     <main className="min-h-screen p-4">
-      <Search />
       <div className="mt-8">
         <SearchResults query={searchParams.q} />
       </div>

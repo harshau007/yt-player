@@ -21,6 +21,7 @@ export default function Player({ videoId }: { videoId: string }) {
   const [autoplay, setAutoplay] = useState(true);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [title, setTitle] = useState<string>("");
   const audioRef = useRef<HTMLAudioElement>(null);
   const router = useRouter();
 
@@ -33,6 +34,7 @@ export default function Player({ videoId }: { videoId: string }) {
         const data = await response.json();
         setAudioUrl(data.audio.url);
         setThumbnailUrl(data.thumbnail);
+        setTitle(data.title);
         if (autoplay) {
           setIsPlaying(true);
         }
@@ -111,7 +113,7 @@ export default function Player({ videoId }: { videoId: string }) {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto p-4 bg-white shadow-lg rounded-lg">
+    <div className="w-full max-w-md mx-auto p-4 border shadow-lg rounded-lg">
       <div className="flex items-center mb-4">
         <Button
           variant="ghost"
@@ -144,6 +146,8 @@ export default function Player({ videoId }: { videoId: string }) {
           autoPlay={autoplay}
         />
       )}
+
+      <p className="mb-2 mt-2">{title}</p>
       <div className="flex items-center justify-between mb-4">
         <Button
           onClick={togglePlayPause}

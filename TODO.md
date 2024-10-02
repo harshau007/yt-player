@@ -1,0 +1,6 @@
+- [ ] Add Research When one query is executed
+- [ ] Implement Queuing of songs
+- [ ] Add Rooms with functionality
+- [ ] Implement Sync Player in Rooms
+- [ ] Try to create its Desktop application using wails3
+- [ ] Add More Functionality and improve....

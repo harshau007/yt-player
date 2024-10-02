@@ -62,7 +62,7 @@ export default function SearchResults({ query }: { query: string }) {
       {results.map((result) => (
         <div
           key={result.id.videoId}
-          className="flex items-start space-x-4 p-4 bg-white shadow rounded-lg cursor-pointer hover:bg-gray-50"
+          className="flex items-start space-x-4 p-4 border-2 shadow rounded-lg cursor-pointer "
           onClick={() => router.push(`/player/${result.id.videoId}`)}
         >
           <Image
