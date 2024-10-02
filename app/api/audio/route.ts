@@ -11,8 +11,8 @@ export async function GET(request: Request) {
 
   try {
     const url = `https://www.youtube.com/watch?v=${videoId}`;
-    let videoInfo = await ytdl.getInfo(url);
-    let audio = ytdl.chooseFormat(videoInfo.formats, {
+    const videoInfo = await ytdl.getInfo(url);
+    const audio = ytdl.chooseFormat(videoInfo.formats, {
       quality: "highestaudio",
       filter: "audioonly",
     });
