@@ -9,14 +9,19 @@ import { ChevronLeft, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { Skeleton } from "./ui/skeleton";
 
-export default function Player({ videoId }: { videoId: string }) {
+interface PlayerProps {
+  videoId: string;
+}
+
+export default function Player({ videoId }: PlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  const [title, setTitle] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [autoplay, setAutoplay] = useState(() => {
@@ -25,16 +30,9 @@ export default function Player({ videoId }: { videoId: string }) {
     }
     return false;
   });
-  const [isVideoMode, setIsVideoMode] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("isVideoMode") === "true";
-    }
-    return false;
-  });
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -45,14 +43,14 @@ export default function Player({ videoId }: { videoId: string }) {
         const response = await fetch(`/api/audio?videoId=${videoId}`);
         const data = await response.json();
         setAudioUrl(data.audio.url);
-        setVideoUrl(data.video.url);
         setThumbnailUrl(data.thumbnail);
+        setTitle(data.title);
         if (autoplay) {
           setIsPlaying(true);
         }
       } catch (error) {
         console.error("Error fetching media data:", error);
-        setError("Failed to load media. Please try again.");
+        setError("Failed to load audio. Please try again.");
       } finally {
         setIsLoading(false);
       }
@@ -62,50 +60,42 @@ export default function Player({ videoId }: { videoId: string }) {
   }, [videoId, autoplay]);
 
   useEffect(() => {
-    const mediaElement = isVideoMode ? videoRef.current : audioRef.current;
-    if (mediaElement) {
+    if (audioRef.current) {
       if (isPlaying) {
-        mediaElement.play().catch((error) => {
+        audioRef.current.play().catch((error) => {
           console.error("Playback was prevented:", error);
           setIsPlaying(false);
         });
       } else {
-        mediaElement.pause();
+        audioRef.current.pause();
       }
     }
-  }, [isPlaying, isVideoMode, audioUrl, videoUrl]);
+  }, [isPlaying, audioUrl]);
 
   useEffect(() => {
-    const mediaElement = isVideoMode ? videoRef.current : audioRef.current;
-    if (mediaElement) {
-      mediaElement.volume = isMuted ? 0 : volume;
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : volume;
     }
-  }, [volume, isMuted, isVideoMode]);
+  }, [volume, isMuted]);
 
   useEffect(() => {
     localStorage.setItem("autoplay", autoplay.toString());
   }, [autoplay]);
-
-  useEffect(() => {
-    localStorage.setItem("isVideoMode", isVideoMode.toString());
-  }, [isVideoMode]);
 
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying);
   };
 
   const handleTimeUpdate = () => {
-    const mediaElement = isVideoMode ? videoRef.current : audioRef.current;
-    if (mediaElement) {
-      setCurrentTime(mediaElement.currentTime);
-      setDuration(mediaElement.duration);
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+      setDuration(audioRef.current.duration);
     }
   };
 
   const handleSeek = (value: number[]) => {
-    const mediaElement = isVideoMode ? videoRef.current : audioRef.current;
-    if (mediaElement) {
-      mediaElement.currentTime = value[0];
+    if (audioRef.current) {
+      audioRef.current.currentTime = value[0];
       setCurrentTime(value[0]);
     }
   };
@@ -125,7 +115,35 @@ export default function Player({ videoId }: { videoId: string }) {
   };
 
   if (isLoading) {
-    return <div className="text-center">Loading media...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center mt-10">
+        <div className="bg-background shadow-lg rounded-lg p-4 w-full max-w-[650px]">
+          <div className="flex items-center mb-4">
+            <Skeleton className="h-10 w-10 rounded-full" />
+            <Skeleton className="h-6 w-48 ml-2" />
+          </div>
+          <Skeleton className="h-[300px] w-full rounded-lg mb-4" />
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <div className="flex items-center space-x-2">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </div>
+            <Skeleton className="h-4 w-full" />
+            <div className="flex justify-between">
+              <Skeleton className="h-4 w-10" />
+              <Skeleton className="h-4 w-10" />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Skeleton className="h-6 w-10 rounded-full" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
@@ -147,32 +165,19 @@ export default function Player({ videoId }: { videoId: string }) {
         >
           <ChevronLeft className="h-6 w-6" />
         </Button>
-        <h2 className="text-2xl font-bold ml-2">Now Playing</h2>
+        <h2 className="text-xl font-bold ml-2 truncate">{title}</h2>
       </div>
-      {isVideoMode
-        ? videoUrl && (
-            <video
-              ref={videoRef}
-              src={videoUrl}
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={handleTimeUpdate}
-              onEnded={() => setIsPlaying(false)}
-              autoPlay={autoplay}
-              className="w-full rounded-lg"
-              controls={false}
-            />
-          )
-        : thumbnailUrl && (
-            <div className="mb-4">
-              <Image
-                src={thumbnailUrl}
-                alt="Video thumbnail"
-                width={640}
-                height={360}
-                className="rounded-lg w-full"
-              />
-            </div>
-          )}
+      {thumbnailUrl && (
+        <div className="flex items-center justify-center mb-2">
+          <Image
+            src={thumbnailUrl}
+            alt="Audio thumbnail"
+            width={100}
+            height={80}
+            className="rounded-lg w-[70%]"
+          />
+        </div>
+      )}
       {audioUrl && (
         <audio
           ref={audioRef}
@@ -183,7 +188,7 @@ export default function Player({ videoId }: { videoId: string }) {
           autoPlay={autoplay}
         />
       )}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 mt-4">
         <Button
           onClick={togglePlayPause}
           size="icon"
@@ -230,23 +235,13 @@ export default function Player({ videoId }: { videoId: string }) {
         <span>{formatTime(currentTime)}</span>
         <span>{formatTime(duration)}</span>
       </div>
-      <div className="flex items-center justify-between space-x-4">
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="autoplay"
-            checked={autoplay}
-            onCheckedChange={setAutoplay}
-          />
-          <Label htmlFor="autoplay">Autoplay</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="videoMode"
-            checked={isVideoMode}
-            onCheckedChange={setIsVideoMode}
-          />
-          <Label htmlFor="videoMode">Video Mode</Label>
-        </div>
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="autoplay"
+          checked={autoplay}
+          onCheckedChange={setAutoplay}
+        />
+        <Label htmlFor="autoplay">Autoplay</Label>
       </div>
     </div>
   );

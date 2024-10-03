@@ -20,6 +20,7 @@ export default function PlayerPage({
 }) {
   const [relatedVideos, setRelatedVideos] = useState<RelatedVideo[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchRelatedVideos = async () => {
@@ -30,6 +31,8 @@ export default function PlayerPage({
       } catch (error) {
         console.error("Error fetching related videos:", error);
         setError("Failed to load related videos. Please try again.");
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -51,7 +54,7 @@ export default function PlayerPage({
           <Player videoId={params.videoId} />
         </div>
         <div className="w-full lg:w-1/3 mt-4 lg:mt-0">
-          <RelatedVideos videos={relatedVideos} />
+          <RelatedVideos videos={relatedVideos} isLoading={isLoading} />
         </div>
       </div>
     </div>
