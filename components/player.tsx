@@ -15,73 +15,97 @@ export default function Player({ videoId }: { videoId: string }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [autoplay, setAutoplay] = useState(true);
+  const [autoplay, setAutoplay] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("autoplay") === "true";
+    }
+    return false;
+  });
+  const [isVideoMode, setIsVideoMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("isVideoMode") === "true";
+    }
+    return false;
+  });
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [title, setTitle] = useState<string>("");
   const audioRef = useRef<HTMLAudioElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const router = useRouter();
 
   useEffect(() => {
-    const fetchAudioData = async () => {
+    const fetchMediaData = async () => {
       setIsLoading(true);
       setError(null);
       try {
         const response = await fetch(`/api/audio?videoId=${videoId}`);
         const data = await response.json();
         setAudioUrl(data.audio.url);
+        setVideoUrl(data.video.url);
         setThumbnailUrl(data.thumbnail);
-        setTitle(data.title);
         if (autoplay) {
           setIsPlaying(true);
         }
       } catch (error) {
-        console.error("Error fetching audio data:", error);
-        setError("Failed to load audio. Please try again.");
+        console.error("Error fetching media data:", error);
+        setError("Failed to load media. Please try again.");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchAudioData();
+    fetchMediaData();
   }, [videoId, autoplay]);
 
   useEffect(() => {
-    if (audioRef.current) {
+    const mediaElement = isVideoMode ? videoRef.current : audioRef.current;
+    if (mediaElement) {
       if (isPlaying) {
-        audioRef.current.play().catch((error) => {
-          console.error("Autoplay was prevented:", error);
+        mediaElement.play().catch((error) => {
+          console.error("Playback was prevented:", error);
           setIsPlaying(false);
         });
       } else {
-        audioRef.current.pause();
+        mediaElement.pause();
       }
     }
-  }, [isPlaying, audioUrl]);
+  }, [isPlaying, isVideoMode, audioUrl, videoUrl]);
 
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
+    const mediaElement = isVideoMode ? videoRef.current : audioRef.current;
+    if (mediaElement) {
+      mediaElement.volume = isMuted ? 0 : volume;
     }
-  }, [volume, isMuted]);
+  }, [volume, isMuted, isVideoMode]);
+
+  useEffect(() => {
+    localStorage.setItem("autoplay", autoplay.toString());
+  }, [autoplay]);
+
+  useEffect(() => {
+    localStorage.setItem("isVideoMode", isVideoMode.toString());
+  }, [isVideoMode]);
 
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying);
   };
 
   const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-      setDuration(audioRef.current.duration);
+    const mediaElement = isVideoMode ? videoRef.current : audioRef.current;
+    if (mediaElement) {
+      setCurrentTime(mediaElement.currentTime);
+      setDuration(mediaElement.duration);
     }
   };
 
   const handleSeek = (value: number[]) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = value[0];
+    const mediaElement = isVideoMode ? videoRef.current : audioRef.current;
+    if (mediaElement) {
+      mediaElement.currentTime = value[0];
       setCurrentTime(value[0]);
     }
   };
@@ -101,7 +125,7 @@ export default function Player({ videoId }: { videoId: string }) {
   };
 
   if (isLoading) {
-    return <div className="text-center">Loading audio...</div>;
+    return <div className="text-center">Loading media...</div>;
   }
 
   if (error) {
@@ -113,7 +137,7 @@ export default function Player({ videoId }: { videoId: string }) {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto p-4 border shadow-lg rounded-lg">
+    <div className="bg-background shadow-lg rounded-lg p-4">
       <div className="flex items-center mb-4">
         <Button
           variant="ghost"
@@ -125,17 +149,30 @@ export default function Player({ videoId }: { videoId: string }) {
         </Button>
         <h2 className="text-2xl font-bold ml-2">Now Playing</h2>
       </div>
-      {thumbnailUrl && (
-        <div className="mb-4">
-          <Image
-            src={thumbnailUrl}
-            alt="Video thumbnail"
-            width={420}
-            height={180}
-            className="rounded-lg"
-          />
-        </div>
-      )}
+      {isVideoMode
+        ? videoUrl && (
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleTimeUpdate}
+              onEnded={() => setIsPlaying(false)}
+              autoPlay={autoplay}
+              className="w-full rounded-lg"
+              controls={false}
+            />
+          )
+        : thumbnailUrl && (
+            <div className="mb-4">
+              <Image
+                src={thumbnailUrl}
+                alt="Video thumbnail"
+                width={640}
+                height={360}
+                className="rounded-lg w-full"
+              />
+            </div>
+          )}
       {audioUrl && (
         <audio
           ref={audioRef}
@@ -146,8 +183,6 @@ export default function Player({ videoId }: { videoId: string }) {
           autoPlay={autoplay}
         />
       )}
-
-      <p className="mb-2 mt-2">{title}</p>
       <div className="flex items-center justify-between mb-4">
         <Button
           onClick={togglePlayPause}
@@ -191,17 +226,27 @@ export default function Player({ videoId }: { videoId: string }) {
         className="mb-2"
         aria-label="Seek"
       />
-      <div className="flex justify-between text-sm text-gray-500 mb-4">
+      <div className="flex justify-between text-sm text-muted-foreground mb-4">
         <span>{formatTime(currentTime)}</span>
         <span>{formatTime(duration)}</span>
       </div>
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="autoplay"
-          checked={autoplay}
-          onCheckedChange={setAutoplay}
-        />
-        <Label htmlFor="autoplay">Autoplay</Label>
+      <div className="flex items-center justify-between space-x-4">
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="autoplay"
+            checked={autoplay}
+            onCheckedChange={setAutoplay}
+          />
+          <Label htmlFor="autoplay">Autoplay</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="videoMode"
+            checked={isVideoMode}
+            onCheckedChange={setIsVideoMode}
+          />
+          <Label htmlFor="videoMode">Video Mode</Label>
+        </div>
       </div>
     </div>
   );

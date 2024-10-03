@@ -1,4 +1,7 @@
 - [ ] Add Research When one query is executed
+- [x] Add Search Suggestion
+- [x] Add Related videos section
+- [x] Add Audio & Video toggle
 - [ ] Implement Queuing of songs
 - [ ] Add Rooms with functionality
 - [ ] Implement Sync Player in Rooms

@@ -12,15 +12,20 @@ export async function GET(request: Request) {
   try {
     const url = `https://www.youtube.com/watch?v=${videoId}`;
     const videoInfo = await ytdl.getInfo(url);
-    const audio = ytdl.chooseFormat(videoInfo.formats, {
+    const audioUrl = ytdl.chooseFormat(videoInfo.formats, {
       quality: "highestaudio",
       filter: "audioonly",
     });
-
+    const videoUrl = ytdl.chooseFormat(videoInfo.formats, {
+      quality: "lowestvideo",
+      filter: "videoonly",
+    });
     const resp = {
       title: videoInfo.videoDetails.title,
       thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-      audio: audio,
+      audio: audioUrl,
+      video: videoUrl,
+      related: videoInfo.related_videos,
     };
 
     return NextResponse.json(resp);
