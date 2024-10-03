@@ -46,6 +46,7 @@ export default function Search() {
     try {
       const response = await axios.get(
         `https://invidious.jing.rocks/api/v1/search/suggestions?q=${encodeURIComponent(
+          // replace with invidious working instance if down
           input
         )}`
       );

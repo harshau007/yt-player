@@ -3,7 +3,9 @@
 import axios from "axios";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { ScrollArea } from "./ui/scroll-area";
+import { Skeleton } from "./ui/skeleton";
 
 const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
 
@@ -28,7 +30,6 @@ export default function SearchResults({ query }: { query: string }) {
       setIsLoading(true);
       setError(null);
       try {
-        // query = query.split(" ", )
         const newQuery = query.toLowerCase().replace(/\s+/g, "-");
         const response = await axios.get(
           `https://www.googleapis.com/youtube/v3/search`,
@@ -54,7 +55,29 @@ export default function SearchResults({ query }: { query: string }) {
     fetchResults();
   }, [query]);
 
-  if (isLoading) return <div>Loading...</div>;
+  const renderSkeletonItem = () => (
+    <div className="flex items-start space-x-4 mb-4 mr-4 p-2 rounded-lg border">
+      <Skeleton className="w-[90px] h-[68px] rounded-md" />
+      <div className="flex-1">
+        <Skeleton className="h-4 w-full mb-2" />
+        <Skeleton className="h-3 w-2/3 mb-1" />
+        <Skeleton className="h-3 w-1/2" />
+      </div>
+    </div>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="bg-background shadow-lg rounded-lg p-2 h-full">
+        <ScrollArea className="h-[calc(100vh-200px)]">
+          {[...Array(6)].map((_, index) => (
+            <React.Fragment key={index}>{renderSkeletonItem()}</React.Fragment>
+          ))}
+        </ScrollArea>
+      </div>
+    );
+  }
+
   if (error) return <div>{error}</div>;
 
   return (
