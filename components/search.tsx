@@ -15,8 +15,6 @@ import { AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
-
 export default function Search() {
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -64,21 +62,10 @@ export default function Search() {
     setError(null);
     setShowSuggestions(false);
     try {
-      const response = await axios.get(
-        `https://www.googleapis.com/youtube/v3/search`,
-        {
-          params: {
-            part: "snippet",
-            q: searchQuery.replace(/\s+/g, "-"),
-            key: YOUTUBE_API_KEY,
-            type: "video",
-            maxResults: 20,
-          },
-        }
-      );
       router.push(
         `/results?q=${encodeURIComponent(searchQuery.replace(/\s+/g, "-"))}`
       );
+      setQuery("");
     } catch (err) {
       console.error("Search error:", err);
       setError("An error occurred while searching. Please try again.");
@@ -96,7 +83,7 @@ export default function Search() {
             placeholder="Search for music..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && handleSearch(query)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch(query)}
             className="flex-grow"
           />
           <Button onClick={() => handleSearch(query)} disabled={isLoading}>
@@ -106,10 +93,9 @@ export default function Search() {
         {showSuggestions && suggestions.length > 0 && (
           <div className="absolute z-50 w-full mt-2 bg-background border border-input rounded-md shadow-lg">
             <Command className="rounded-lg border shadow-md">
-              {/* <CommandInput placeholder="Type a command or search..." /> */}
               <CommandList className="max-h-[300px] overflow-y-auto">
                 <CommandEmpty>No results found.</CommandEmpty>
-                <CommandGroup heading="Suggestions">
+                <CommandGroup>
                   {suggestions.map((suggestion, index) => (
                     <CommandItem
                       key={index}
