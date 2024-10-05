@@ -1,9 +1,9 @@
-- [ ] Add Research When one query is executed
+- [x] Add Research When one query is executed
 - [x] Add Search Suggestion
 - [x] Add Related videos section
 - [x] Add Audio & Video toggle
 - [ ] Implement Queuing of songs
-- [ ] Add Rooms with functionality
-- [ ] Implement Sync Player in Rooms
+- [x] Add Rooms with functionality (SEMI)
+- [x] Implement Sync Player in Rooms
 - [ ] Try to create its Desktop application using wails3
 - [ ] Add More Functionality and improve....
