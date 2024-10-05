@@ -1,9 +1,11 @@
 "use client";
 
 import Player from "@/components/room-player";
+import Search from "@/components/room-search";
+import SearchResults from "@/components/room-search-result";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useWebSocket } from "@/contexts/WebSocketContext";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function Room() {
@@ -12,10 +14,8 @@ export default function Room() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [videoId, setVideoId] = useState("dQw4w9WgXcQ"); // Default video
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const searchQuery = searchParams.get("q");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentTime, setCurrentTime] = useState(0);
 
   useEffect(() => {
     const checkAdminStatus = () => {
@@ -41,12 +41,25 @@ export default function Room() {
   }, [id, isConnected, sendMessage]);
 
   useEffect(() => {
-    if (searchQuery) {
-      setShowSearchResults(true);
+    if (socket) {
+      socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        switch (message.type) {
+          case "seek":
+            setCurrentTime(message.time);
+            break;
+          case "video_change":
+            setVideoId(message.videoId);
+            setCurrentTime(0);
+            break;
+          // Add more cases as needed
+        }
+      };
     }
-  }, [searchQuery]);
+  }, [socket]);
 
   const handleSeek = (time: number) => {
+    setCurrentTime(time);
     if (isAdmin) {
       sendMessage({ type: "seek", roomId: id, time });
     }
@@ -59,16 +72,19 @@ export default function Room() {
   };
 
   const handleVideoSelect = (selectedVideoId: string) => {
+    setVideoId(selectedVideoId);
+    setCurrentTime(0);
     if (isAdmin) {
-      setVideoId(selectedVideoId);
       sendMessage({
         type: "video_change",
         roomId: id,
         videoId: selectedVideoId,
       });
-      setShowSearchResults(false);
-      router.push(`/room/${id}`);
     }
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
   };
 
   if (error) {
@@ -85,26 +101,43 @@ export default function Room() {
       <p className="mb-4">
         You are {isAdmin ? "the admin" : "a participant"} in this room.
       </p>
-      {/* {isAdmin && (
-        <div className="mb-4">
-          <Search />
-        </div>
-      )}
-      {showSearchResults && isAdmin && searchQuery && (
-        <div className="mb-4">
-          <SearchResults
-            query={searchQuery}
-            onVideoSelect={handleVideoSelect}
+      {isAdmin ? (
+        <>
+          <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
+            <div className="w-full lg:w-2/3">
+              <Player
+                videoId={videoId}
+                onSeek={handleSeek}
+                onPlayPause={handlePlayPause}
+                isAdmin={isAdmin}
+                roomId={id as string}
+                // currentTime={currentTime}
+              />
+            </div>
+            <div className="w-full lg:w-1/3 h-full">
+              <div className="mb-4">
+                <Search onSearch={handleSearch} isAdmin={isAdmin} />
+              </div>
+              <div className="h-[calc(100vh-90px)] overflow-y-auto">
+                <SearchResults
+                  query={searchQuery}
+                  onVideoSelect={handleVideoSelect}
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <Player
+            videoId={videoId}
+            onSeek={handleSeek}
+            onPlayPause={handlePlayPause}
+            isAdmin={isAdmin}
+            roomId={id as string}
           />
-        </div>
-      )} */}
-      <Player
-        videoId={videoId}
-        onSeek={handleSeek}
-        onPlayPause={handlePlayPause}
-        isAdmin={isAdmin}
-        roomId={id as string}
-      />
+        </>
+      )}
     </div>
   );
 }

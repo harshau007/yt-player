@@ -20,7 +20,7 @@ interface SearchResult {
 
 interface SearchResultsProps {
   query: string;
-  onVideoSelect?: (videoId: string) => void;
+  onVideoSelect: (videoId: string) => void;
 }
 
 export default function SearchResults({
@@ -28,11 +28,12 @@ export default function SearchResults({
   onVideoSelect,
 }: SearchResultsProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchResults = async () => {
+      if (!query) return;
       setIsLoading(true);
       setError(null);
       try {
@@ -75,7 +76,7 @@ export default function SearchResults({
   if (isLoading) {
     return (
       <div className="bg-background shadow-lg rounded-lg p-2 h-full">
-        <ScrollArea className="h-[calc(100vh-200px)]">
+        <ScrollArea className="h-full">
           {[...Array(6)].map((_, index) => (
             <React.Fragment key={index}>{renderSkeletonItem()}</React.Fragment>
           ))}
@@ -87,31 +88,31 @@ export default function SearchResults({
   if (error) return <div>{error}</div>;
 
   return (
-    <div className="space-y-4">
-      {results.map((result) => (
-        <div
-          key={result.id.videoId}
-          className="flex items-start space-x-4 p-4 border-2 shadow rounded-lg cursor-pointer hover:bg-muted"
-          onClick={() =>
-            onVideoSelect ? onVideoSelect(result.id.videoId) : null
-          }
-        >
-          <Image
-            src={result.snippet.thumbnails.default.url}
-            alt={result.snippet.title}
-            width={120}
-            height={90}
-            className="rounded"
-          />
-          <div>
-            <h3 className="font-semibold">{result.snippet.title}</h3>
-            <p className="text-sm text-gray-500">
-              {result.snippet.channelTitle}
-            </p>
-            <p className="text-sm mt-2">{result.snippet.description}</p>
+    <ScrollArea className="h-full">
+      <div className="space-y-4">
+        {results.map((result) => (
+          <div
+            key={result.id.videoId}
+            className="flex items-start space-x-4 p-4 border-2 shadow rounded-lg cursor-pointer hover:bg-muted"
+            onClick={() => onVideoSelect(result.id.videoId)}
+          >
+            <Image
+              src={result.snippet.thumbnails.default.url}
+              alt={result.snippet.title}
+              width={120}
+              height={90}
+              className="rounded"
+            />
+            <div>
+              <h3 className="font-semibold">{result.snippet.title}</h3>
+              <p className="text-sm text-gray-500">
+                {result.snippet.channelTitle}
+              </p>
+              <p className="text-sm mt-2">{result.snippet.description}</p>
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </ScrollArea>
   );
 }

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import Image from "next/image";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useWebSocket } from "@/contexts/WebSocketContext";
+import { Pause, Play, Volume2, VolumeX } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 
 interface PlayerProps {
   videoId: string;
@@ -181,8 +181,8 @@ export default function Player({
           <Image
             src={thumbnailUrl}
             alt="Audio thumbnail"
-            width={640}
-            height={360}
+            width={360}
+            height={80}
             className="rounded-lg w-full"
           />
         </div>

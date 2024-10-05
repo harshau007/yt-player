@@ -1,24 +1,27 @@
+"use client";
 import Search from "@/components/search";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ModeToggle } from "@/components/theme-toggle";
 import { WebSocketProvider } from "@/contexts/WebSocketContext";
-import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
+import { usePathname } from "next/navigation";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: "Music App",
-  description: "A modern music app built with Next.js",
-};
+// export const metadata: Metadata = {
+//   title: "Music App",
+//   description: "A modern music app built with Next.js",
+// };
 
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isRoom = pathname.startsWith("/room");
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
@@ -28,7 +31,7 @@ export default function RootLayout({
               <header className="container mx-auto p-4">
                 <div className="flex justify-between items-center">
                   <h1 className="text-2xl font-bold">Music App</h1>
-                  <Search />
+                  {isRoom ? <></> : <Search />}
                   <ModeToggle />
                 </div>
               </header>
