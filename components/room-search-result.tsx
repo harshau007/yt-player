@@ -20,7 +20,7 @@ interface SearchResult {
 
 interface SearchResultsProps {
   query: string;
-  onVideoSelect: (videoId: string) => void;
+  onVideoSelect: (videoId: string, videoTitle: string) => void;
 }
 
 export default function SearchResults({
@@ -94,7 +94,9 @@ export default function SearchResults({
           <div
             key={result.id.videoId}
             className="flex items-start space-x-4 p-4 border-2 shadow rounded-lg cursor-pointer hover:bg-muted"
-            onClick={() => onVideoSelect(result.id.videoId)}
+            onClick={() =>
+              onVideoSelect(result.id.videoId, result.snippet.title)
+            }
           >
             <Image
               src={result.snippet.thumbnails.default.url}

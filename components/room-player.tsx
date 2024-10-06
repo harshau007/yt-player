@@ -2,29 +2,41 @@
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { Pause, Play, Volume2, VolumeX } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 interface PlayerProps {
-  videoId: string;
+  initialVideoId: string;
   onSeek: (time: number) => void;
   onPlayPause: (isPlaying: boolean) => void;
   isAdmin: boolean;
   roomId: string;
+  initialIsPlaying: boolean;
+  initialCurrentTime: number;
 }
 
+const SYNC_INTERVAL = 250; // Sync every 250ms
+const LATENCY_THRESHOLD = 2; // 2 seconds threshold for latency compensation
+const MAX_PLAYBACK_RATE = 2;
+const MIN_PLAYBACK_RATE = 0.5;
+
 export default function Player({
-  videoId,
+  initialVideoId,
   onSeek,
   onPlayPause,
   isAdmin,
   roomId,
+  initialIsPlaying,
+  initialCurrentTime,
 }: PlayerProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [videoId, setVideoId] = useState(initialVideoId);
+  const [isPlaying, setIsPlaying] = useState(initialIsPlaying);
+  const [currentTime, setCurrentTime] = useState(initialCurrentTime);
   const [duration, setDuration] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
@@ -33,9 +45,10 @@ export default function Player({
   const [isLoading, setIsLoading] = useState(true);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [autoplay, setAutoplay] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { socket, sendMessage } = useWebSocket();
-  const [isSeeking, setIsSeeking] = useState(false);
+  const syncIntervalRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     const fetchMediaData = async () => {
@@ -55,42 +68,35 @@ export default function Player({
       }
     };
 
-    fetchMediaData();
+    if (videoId) {
+      fetchMediaData();
+    }
   }, [videoId]);
 
   useEffect(() => {
     if (socket) {
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        if (data.type === "seek" && !isAdmin && !isSeeking) {
-          if (audioRef.current) {
-            audioRef.current.currentTime = data.time;
-          }
+        if (data.type === "seek" && !isAdmin) {
+          handleRemoteSeek(data.time);
         } else if (data.type === "play_pause" && !isAdmin) {
-          setIsPlaying(data.isPlaying);
-        } else if (data.type === "sync_request" && isAdmin) {
-          sendMessage({
-            type: "sync_response",
-            roomId,
-            time: audioRef.current?.currentTime || 0,
-            isPlaying,
-            videoId,
-          });
+          handleRemotePlayPause(data.isPlaying);
         } else if (data.type === "sync_response" && !isAdmin) {
-          if (audioRef.current) {
-            audioRef.current.currentTime = data.time;
-          }
-          setIsPlaying(data.isPlaying);
-          if (data.videoId !== videoId) {
-            // Update videoId in the parent component
-            onVideoChange(data.videoId);
-          }
-        } else if (data.type === "video_change" && !isAdmin) {
-          onVideoChange(data.videoId);
+          handleSyncResponse(data);
+        } else if (data.type === "video_change") {
+          handleVideoChange(data.videoId);
+        } else if (data.type === "autoplay_change" && !isAdmin) {
+          setAutoplay(data.autoplay);
         }
       };
     }
-  }, [socket, isAdmin, sendMessage, roomId, isPlaying, videoId, isSeeking]);
+
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+      }
+    };
+  }, [socket, isAdmin, sendMessage, roomId, isPlaying, videoId]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -103,40 +109,54 @@ export default function Player({
         audioRef.current.pause();
       }
     }
-  }, [isPlaying]);
+
+    // Set up sync interval for admin
+    if (isAdmin && isPlaying) {
+      syncIntervalRef.current = setInterval(sendSyncResponse, SYNC_INTERVAL);
+    } else if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
+    }
+
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+      }
+    };
+  }, [isPlaying, isAdmin]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = initialCurrentTime;
+    }
+  }, [initialCurrentTime]);
+
+  useEffect(() => {
+    if (autoplay && audioRef.current && audioRef.current.paused) {
+      audioRef.current.play().catch(console.error);
+    }
+  }, [autoplay]);
 
   const togglePlayPause = () => {
     if (isAdmin) {
       const newIsPlaying = !isPlaying;
       setIsPlaying(newIsPlaying);
       onPlayPause(newIsPlaying);
-      sendMessage({ type: "play_pause", roomId, isPlaying: newIsPlaying });
     }
   };
 
   const handleTimeUpdate = () => {
-    if (audioRef.current && !isSeeking) {
+    if (audioRef.current) {
       setCurrentTime(audioRef.current.currentTime);
       setDuration(audioRef.current.duration);
-      if (isAdmin) {
-        sendMessage({
-          type: "seek",
-          roomId,
-          time: audioRef.current.currentTime,
-        });
-      }
     }
   };
 
   const handleSeek = (value: number[]) => {
     if (isAdmin && audioRef.current) {
-      setIsSeeking(true);
       const newTime = value[0];
       audioRef.current.currentTime = newTime;
       setCurrentTime(newTime);
       onSeek(newTime);
-      sendMessage({ type: "seek", roomId, time: newTime });
-      setTimeout(() => setIsSeeking(false), 100);
     }
   };
 
@@ -156,9 +176,84 @@ export default function Player({
     }
   };
 
-  const onVideoChange = (newVideoId: string) => {
-    // This function should be passed from the parent component
-    // to update the videoId when the admin changes the song
+  const handleRemoteSeek = (time: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+    }
+  };
+
+  const handleRemotePlayPause = (shouldPlay: boolean) => {
+    setIsPlaying(shouldPlay);
+    if (audioRef.current) {
+      if (shouldPlay) {
+        audioRef.current.play().catch(console.error);
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  };
+
+  const sendSyncResponse = () => {
+    if (audioRef.current) {
+      sendMessage({
+        type: "sync_response",
+        roomId,
+        time: audioRef.current.currentTime,
+        isPlaying,
+        videoId,
+        autoplay,
+      });
+    }
+  };
+
+  const handleSyncResponse = (data: any) => {
+    if (audioRef.current) {
+      const localTime = audioRef.current.currentTime;
+      const serverTime = data.time;
+      const timeDiff = serverTime - localTime;
+
+      // Set the current time directly if the difference is large
+      if (Math.abs(timeDiff) > LATENCY_THRESHOLD) {
+        audioRef.current.currentTime = serverTime;
+      } else {
+        // Adjust playback rate for small differences
+        let newRate = 1 + timeDiff / SYNC_INTERVAL;
+
+        // Clamp the playback rate to valid values
+        newRate = Math.max(
+          MIN_PLAYBACK_RATE,
+          Math.min(MAX_PLAYBACK_RATE, newRate)
+        );
+
+        audioRef.current.playbackRate = newRate;
+
+        // Reset playback rate after a short delay
+        setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.playbackRate = 1;
+          }
+        }, SYNC_INTERVAL);
+      }
+
+      setIsPlaying(data.isPlaying);
+      setAutoplay(data.autoplay);
+    }
+  };
+
+  const handleVideoChange = (newVideoId: string) => {
+    setVideoId(newVideoId);
+    setCurrentTime(0);
+  };
+
+  const handleAutoplayChange = (newAutoplay: boolean) => {
+    if (isAdmin) {
+      setAutoplay(newAutoplay);
+      sendMessage({
+        type: "autoplay_change",
+        roomId,
+        autoplay: newAutoplay,
+      });
+    }
   };
 
   if (isLoading) {
@@ -194,6 +289,7 @@ export default function Player({
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleTimeUpdate}
           onEnded={() => setIsPlaying(false)}
+          autoPlay={true}
         />
       )}
       <div className="flex items-center justify-between mb-4">
@@ -245,6 +341,16 @@ export default function Player({
         <span>{formatTime(currentTime)}</span>
         <span>{formatTime(duration)}</span>
       </div>
+      {isAdmin && (
+        <div className="flex items-center space-x-2 mt-4">
+          <Switch
+            id="autoplay"
+            checked={autoplay}
+            onCheckedChange={handleAutoplayChange}
+          />
+          <Label htmlFor="autoplay">Autoplay</Label>
+        </div>
+      )}
     </div>
   );
 }

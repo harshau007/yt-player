@@ -15,6 +15,10 @@ interface WebSocketContextType {
   isConnected: boolean;
   sendMessage: (message: any) => void;
   lastMessage: any;
+  currentTime: number;
+  isPlaying: boolean;
+  videoId: string;
+  // isAdmin: boolean;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(
@@ -24,6 +28,7 @@ const WebSocketContext = createContext<WebSocketContextType | undefined>(
 const WS_URL = "ws://localhost:8080/websocket"; // Replace with your WebSocket server URL
 const RECONNECT_INTERVAL = 5000; // 5 seconds
 const MAX_RECONNECT_ATTEMPTS = 5;
+const SYNC_INTERVAL = 250; // 5 seconds
 
 export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -34,6 +39,11 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const reconnectAttemptsRef = useRef(0);
   const messageQueueRef = useRef<any[]>([]);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [videoId, setVideoId] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const lastSyncTimeRef = useRef<number>(0);
 
   const connect = useCallback(() => {
     if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
@@ -81,18 +91,35 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
       setLastMessage(message);
-      // Handle different message types here
+
       switch (message.type) {
         case "seek":
-          // Handle seek
+          setCurrentTime(message.time);
           break;
         case "play_pause":
-          // Handle play/pause
+          setIsPlaying(message.isPlaying);
           break;
         case "video_change":
-          // Handle video change
+          setVideoId(message.videoId);
+          setCurrentTime(0); // Reset current time when video changes
           break;
-        // Add more cases as needed
+        case "sync_response":
+          if (message.videoId) {
+            setVideoId(message.videoId);
+          }
+          if (message.time !== undefined) {
+            setCurrentTime(message.time);
+          }
+          if (message.isPlaying !== undefined) {
+            setIsPlaying(message.isPlaying);
+          }
+          setIsAdmin(message.isAdmin);
+          break;
+        case "sync_request":
+          // The server should handle this and send a sync_response
+          break;
+        default:
+          console.warn("Unhandled message type:", message.type);
       }
     };
 
@@ -113,6 +140,14 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const sendMessage = useCallback(
     (message: any) => {
+      const now = Date.now();
+      if (message.type === "seek" || message.type === "play_pause") {
+        if (now - lastSyncTimeRef.current < SYNC_INTERVAL) {
+          return; // Throttle messages
+        }
+        lastSyncTimeRef.current = now;
+      }
+
       if (socket?.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify(message));
       } else if (socket?.readyState === WebSocket.CONNECTING) {
@@ -133,7 +168,16 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <WebSocketContext.Provider
-      value={{ socket, isConnected, sendMessage, lastMessage }}
+      value={{
+        socket,
+        isConnected,
+        sendMessage,
+        lastMessage,
+        currentTime,
+        isPlaying,
+        videoId,
+        // isAdmin,
+      }}
     >
       {children}
     </WebSocketContext.Provider>

@@ -86,8 +86,12 @@ export default function Search({ onSearch, isAdmin }: SearchProps) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch(query)}
             className="flex-grow"
+            disabled={!isAdmin}
           />
-          <Button onClick={() => handleSearch(query)} disabled={isLoading}>
+          <Button
+            onClick={() => handleSearch(query)}
+            disabled={isLoading || !isAdmin}
+          >
             {isLoading ? "Searching..." : "Search"}
           </Button>
         </div>
