@@ -18,7 +18,8 @@ interface WebSocketContextType {
   currentTime: number;
   isPlaying: boolean;
   videoId: string;
-  // isAdmin: boolean;
+  latency: number;
+  sendPing: () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(
@@ -28,7 +29,10 @@ const WebSocketContext = createContext<WebSocketContextType | undefined>(
 const WS_URL = "ws://localhost:8080/websocket"; // Replace with your WebSocket server URL
 const RECONNECT_INTERVAL = 5000; // 5 seconds
 const MAX_RECONNECT_ATTEMPTS = 5;
-const SYNC_INTERVAL = 250; // 5 seconds
+const INITIAL_SYNC_INTERVAL = 250; // Initial sync interval
+const MIN_SYNC_INTERVAL = 100; // Minimum sync interval
+const MAX_SYNC_INTERVAL = 300; // Maximum sync interval
+const LATENCY_ALPHA = 0.2; // EMA alpha value for latency smoothing
 
 export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -42,8 +46,9 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoId, setVideoId] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const lastSyncTimeRef = useRef<number>(0);
+  const [latency, setLatency] = useState(0);
+  const lastPingTimeRef = useRef<number>(0);
+  const syncIntervalRef = useRef<number>(INITIAL_SYNC_INTERVAL);
 
   const connect = useCallback(() => {
     if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
@@ -113,10 +118,14 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
           if (message.isPlaying !== undefined) {
             setIsPlaying(message.isPlaying);
           }
-          setIsAdmin(message.isAdmin);
           break;
-        case "sync_request":
-          // The server should handle this and send a sync_response
+        case "pong":
+          const rtt = Date.now() - lastPingTimeRef.current;
+          const newLatency = rtt / 2; // Assuming symmetric latency
+          setLatency(
+            (prevLatency) =>
+              prevLatency * (1 - LATENCY_ALPHA) + newLatency * LATENCY_ALPHA
+          );
           break;
         default:
           console.warn("Unhandled message type:", message.type);
@@ -140,14 +149,6 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const sendMessage = useCallback(
     (message: any) => {
-      const now = Date.now();
-      if (message.type === "seek" || message.type === "play_pause") {
-        if (now - lastSyncTimeRef.current < SYNC_INTERVAL) {
-          return; // Throttle messages
-        }
-        lastSyncTimeRef.current = now;
-      }
-
       if (socket?.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify(message));
       } else if (socket?.readyState === WebSocket.CONNECTING) {
@@ -166,6 +167,20 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
     [socket]
   );
 
+  const sendPing = useCallback(() => {
+    lastPingTimeRef.current = Date.now();
+    sendMessage({ type: "ping" });
+  }, [sendMessage]);
+
+  // Adjust sync interval based on latency
+  useEffect(() => {
+    const newSyncInterval = Math.max(
+      MIN_SYNC_INTERVAL,
+      Math.min(MAX_SYNC_INTERVAL, latency * 4)
+    );
+    syncIntervalRef.current = newSyncInterval;
+  }, [latency]);
+
   return (
     <WebSocketContext.Provider
       value={{
@@ -176,7 +191,8 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
         currentTime,
         isPlaying,
         videoId,
-        // isAdmin,
+        latency,
+        sendPing,
       }}
     >
       {children}

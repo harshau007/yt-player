@@ -20,10 +20,9 @@ interface PlayerProps {
   initialCurrentTime: number;
 }
 
-const SYNC_INTERVAL = 250; // Sync every 250ms
-const LATENCY_THRESHOLD = 2; // 2 seconds threshold for latency compensation
-const MAX_PLAYBACK_RATE = 2;
-const MIN_PLAYBACK_RATE = 0.5;
+const CLOCK_DRIFT_THRESHOLD = 0.5; // 500ms threshold for clock drift
+const MAX_PLAYBACK_RATE = 1.1;
+const MIN_PLAYBACK_RATE = 0.9;
 
 export default function Player({
   initialVideoId,
@@ -47,7 +46,7 @@ export default function Player({
   const [isMuted, setIsMuted] = useState(false);
   const [autoplay, setAutoplay] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const { socket, sendMessage } = useWebSocket();
+  const { socket, sendMessage, latency, sendPing } = useWebSocket();
   const syncIntervalRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
@@ -112,7 +111,7 @@ export default function Player({
 
     // Set up sync interval for admin
     if (isAdmin && isPlaying) {
-      syncIntervalRef.current = setInterval(sendSyncResponse, SYNC_INTERVAL);
+      syncIntervalRef.current = setInterval(sendSyncResponse, 1000);
     } else if (syncIntervalRef.current) {
       clearInterval(syncIntervalRef.current);
     }
@@ -135,6 +134,17 @@ export default function Player({
       audioRef.current.play().catch(console.error);
     }
   }, [autoplay]);
+
+  // Periodic latency measurement
+  useEffect(() => {
+    const pingInterval = setInterval(() => {
+      if (!isAdmin) {
+        sendPing();
+      }
+    }, 5000);
+
+    return () => clearInterval(pingInterval);
+  }, [isAdmin, sendPing]);
 
   const togglePlayPause = () => {
     if (isAdmin) {
@@ -178,7 +188,8 @@ export default function Player({
 
   const handleRemoteSeek = (time: number) => {
     if (audioRef.current) {
-      audioRef.current.currentTime = time;
+      const adjustedTime = time + latency / 1000;
+      audioRef.current.currentTime = adjustedTime;
     }
   };
 
@@ -209,30 +220,27 @@ export default function Player({
   const handleSyncResponse = (data: any) => {
     if (audioRef.current) {
       const localTime = audioRef.current.currentTime;
-      const serverTime = data.time;
+      const serverTime = data.time + latency / 1000; // Adjust for latency
       const timeDiff = serverTime - localTime;
 
-      // Set the current time directly if the difference is large
-      if (Math.abs(timeDiff) > LATENCY_THRESHOLD) {
+      if (Math.abs(timeDiff) > CLOCK_DRIFT_THRESHOLD) {
+        // Large difference, adjust immediately
         audioRef.current.currentTime = serverTime;
       } else {
-        // Adjust playback rate for small differences
-        let newRate = 1 + timeDiff / SYNC_INTERVAL;
-
-        // Clamp the playback rate to valid values
-        newRate = Math.max(
+        // Small difference, adjust gradually
+        const adjustment = timeDiff / 2; // Adjust over 2 seconds
+        const newRate = 1 + adjustment;
+        audioRef.current.playbackRate = Math.max(
           MIN_PLAYBACK_RATE,
           Math.min(MAX_PLAYBACK_RATE, newRate)
         );
 
-        audioRef.current.playbackRate = newRate;
-
-        // Reset playback rate after a short delay
+        // Reset playback rate after adjustment
         setTimeout(() => {
           if (audioRef.current) {
             audioRef.current.playbackRate = 1;
           }
-        }, SYNC_INTERVAL);
+        }, 2000);
       }
 
       setIsPlaying(data.isPlaying);
@@ -289,7 +297,6 @@ export default function Player({
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleTimeUpdate}
           onEnded={() => setIsPlaying(false)}
-          autoPlay={true}
         />
       )}
       <div className="flex items-center justify-between mb-4">
