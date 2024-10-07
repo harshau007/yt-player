@@ -1,19 +1,15 @@
 "use client";
+
 import Search from "@/components/search";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ModeToggle } from "@/components/theme-toggle";
 import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import { Inter } from "next/font/google";
+import { usePathname, useRouter } from "next/navigation";
 import { Toaster } from "sonner";
-import { usePathname } from "next/navigation";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
-
-// export const metadata: Metadata = {
-//   title: "Music App",
-//   description: "A modern music app built with Next.js",
-// };
 
 export default function RootLayout({
   children,
@@ -22,22 +18,35 @@ export default function RootLayout({
 }) {
   const pathname = usePathname();
   const isRoom = pathname.startsWith("/room");
+  const router = useRouter();
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <title>Music App</title>
+      </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          <WebSocketProvider>
-            <div className="min-h-screen bg-background text-foreground">
-              <header className="container mx-auto p-4">
-                <div className="flex justify-between items-center">
-                  <h1 className="text-2xl font-bold">Music App</h1>
-                  {isRoom ? <></> : <Search />}
-                  <ModeToggle />
-                </div>
-              </header>
-              <main className="container mx-auto p-4">{children}</main>
-            </div>
-          </WebSocketProvider>
+          <div className="min-h-screen bg-background text-foreground">
+            <header className="container mx-auto p-4">
+              <div className="flex justify-between items-center">
+                <h1
+                  className="text-2xl font-bold hover:cursor-pointer"
+                  onClick={() => router.replace("/")}
+                >
+                  Music App
+                </h1>
+                {!isRoom && <Search />}
+                <ModeToggle />
+              </div>
+            </header>
+            <main className="container mx-auto p-4">
+              {isRoom ? (
+                <WebSocketProvider>{children}</WebSocketProvider>
+              ) : (
+                children
+              )}
+            </main>
+          </div>
           <Toaster richColors={true} />
         </ThemeProvider>
       </body>

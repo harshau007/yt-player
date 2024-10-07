@@ -3,8 +3,10 @@
 import Player from "@/components/room-player";
 import Search from "@/components/room-search";
 import SearchResults from "@/components/room-search-result";
+import { Button } from "@/components/ui/button";
 import { useWebSocket } from "@/contexts/WebSocketContext";
-import { useParams } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function Room() {
@@ -21,6 +23,7 @@ export default function Room() {
   const [searchQuery, setSearchQuery] = useState("");
   const [localVideoId, setLocalVideoId] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const checkAdminStatus = () => {
@@ -34,7 +37,9 @@ export default function Room() {
     setLocalVideoId(storedVideoId as string);
     if (isConnected) {
       sendMessage({ type: "join_room", roomId: id, isAdmin: isAdminUser });
-      sendMessage({ type: "sync_request", roomId: id });
+      if (!isAdminUser) {
+        sendMessage({ type: "sync_request", roomId: id });
+      }
     }
 
     return () => {
@@ -81,7 +86,16 @@ export default function Room() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Room: {id}</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold mb-4">Room: {id}</h1>
+        <Button
+          onClick={() => router.replace("/room/join")}
+          variant="outline"
+          size="sm"
+        >
+          <LogOut className="mr-2 h-4 w-4" /> Leave Room
+        </Button>
+      </div>
       <p className="mb-4">
         You are {isAdmin ? "the admin" : "a participant"} in this room.
       </p>

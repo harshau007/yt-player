@@ -127,6 +127,11 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({
               prevLatency * (1 - LATENCY_ALPHA) + newLatency * LATENCY_ALPHA
           );
           break;
+        case "room_state":
+          setVideoId(message.videoId);
+          setCurrentTime(message.currentTime);
+          setIsPlaying(message.isPlaying);
+          break;
         default:
           console.warn("Unhandled message type:", message.type);
       }

@@ -9,6 +9,7 @@ import { useWebSocket } from "@/contexts/WebSocketContext";
 import { Pause, Play, Volume2, VolumeX } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { Skeleton } from "./ui/skeleton";
 
 interface PlayerProps {
   initialVideoId: string;
@@ -265,7 +266,35 @@ export default function Player({
   };
 
   if (isLoading) {
-    return <div className="text-center">Loading audio...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center mt-10">
+        <div className="bg-background shadow-lg rounded-lg p-4 w-full max-w-[650px]">
+          <div className="flex items-center mb-4">
+            <Skeleton className="h-10 w-10 rounded-full" />
+            <Skeleton className="h-6 w-48 ml-2" />
+          </div>
+          <Skeleton className="h-[300px] w-full rounded-lg mb-4" />
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <div className="flex items-center space-x-2">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </div>
+            <Skeleton className="h-4 w-full" />
+            <div className="flex justify-between">
+              <Skeleton className="h-4 w-10" />
+              <Skeleton className="h-4 w-10" />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Skeleton className="h-6 w-10 rounded-full" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
