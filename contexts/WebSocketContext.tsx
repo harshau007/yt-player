@@ -26,12 +26,12 @@ const WebSocketContext = createContext<WebSocketContextType | undefined>(
   undefined
 );
 
-const WS_URL = "ws://localhost:8080/websocket"; // Replace with your WebSocket server URL
+const WS_URL = "ws://192.168.1.108:8080/websocket"; // Replace with your WebSocket server URL
 const RECONNECT_INTERVAL = 5000; // 5 seconds
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_SYNC_INTERVAL = 250; // Initial sync interval
 const MIN_SYNC_INTERVAL = 100; // Minimum sync interval
-const MAX_SYNC_INTERVAL = 300; // Maximum sync interval
+const MAX_SYNC_INTERVAL = 500; // Maximum sync interval
 const LATENCY_ALPHA = 0.2; // EMA alpha value for latency smoothing
 
 export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({

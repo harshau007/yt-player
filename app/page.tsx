@@ -30,8 +30,8 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <p>
-                Create a new room and invite others to join. You'll be the admin
-                and can control the music.
+                Create a new room and invite others to join. You&apos;ll be the
+                admin and can control the music.
               </p>
             </CardContent>
             <CardFooter>

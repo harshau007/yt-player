@@ -5,7 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { ChevronLeft, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import {
+  ChevronLeft,
+  Download,
+  Pause,
+  Play,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -24,6 +31,7 @@ export default function Player({ videoId }: PlayerProps) {
   const [title, setTitle] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [autoplay, setAutoplay] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("autoplay") === "true";
@@ -114,6 +122,38 @@ export default function Player({ videoId }: PlayerProps) {
     router.push("/");
   };
 
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/download?videoId=${videoId}`);
+      if (!response.ok) throw new Error("Network response was not ok");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      const filename = title.trim()
+        ? `${title.toLowerCase().replaceAll(" ", "-")}.mp3`
+        : "audio.mp3";
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Error downloading audio:", error);
+      setError("Failed to download audio. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleAutoplayChange = (checked: boolean) => {
+    setAutoplay(checked);
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center mt-10">
@@ -136,8 +176,11 @@ export default function Player({ videoId }: PlayerProps) {
               <Skeleton className="h-4 w-10" />
               <Skeleton className="h-4 w-10" />
             </div>
-            <div className="flex items-center space-x-2">
-              <Skeleton className="h-6 w-10 rounded-full" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Skeleton className="h-6 w-10 rounded-full" />
+                <Skeleton className="h-4 w-16" />
+              </div>
               <Skeleton className="h-4 w-16" />
             </div>
           </div>
@@ -174,7 +217,10 @@ export default function Player({ videoId }: PlayerProps) {
             alt="Audio thumbnail"
             width={100}
             height={80}
-            className="rounded-lg w-[70%]"
+            quality={100}
+            className="rounded-lg w-[100%]"
+            unoptimized
+            priority
           />
         </div>
       )}
@@ -235,13 +281,34 @@ export default function Player({ videoId }: PlayerProps) {
         <span>{formatTime(currentTime)}</span>
         <span>{formatTime(duration)}</span>
       </div>
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="autoplay"
-          checked={autoplay}
-          onCheckedChange={setAutoplay}
-        />
-        <Label htmlFor="autoplay">Autoplay</Label>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="autoplay"
+            checked={autoplay}
+            onCheckedChange={handleAutoplayChange}
+          />
+          <Label htmlFor="autoplay">Autoplay</Label>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDownload}
+          disabled={isDownloading}
+          aria-label="Download audio"
+        >
+          {isDownloading ? (
+            <>
+              <span className="animate-spin mr-2">⏳</span>
+              Downloading...
+            </>
+          ) : (
+            <>
+              <Download className="h-4 w-4 mr-2" />
+              Download MP3
+            </>
+          )}
+        </Button>
       </div>
     </div>
   );

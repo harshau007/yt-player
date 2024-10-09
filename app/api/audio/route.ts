@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     });
     const resp = {
       title: videoInfo.videoDetails.title,
-      thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
       audio: audioUrl,
       video: videoUrl,
       related: videoInfo.related_videos,

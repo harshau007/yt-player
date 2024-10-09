@@ -74,57 +74,6 @@ export default function Player({
   }, [videoId]);
 
   useEffect(() => {
-    if (socket) {
-      socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === "seek" && !isAdmin) {
-          handleRemoteSeek(data.time);
-        } else if (data.type === "play_pause" && !isAdmin) {
-          handleRemotePlayPause(data.isPlaying);
-        } else if (data.type === "sync_response" && !isAdmin) {
-          handleSyncResponse(data);
-        } else if (data.type === "video_change") {
-          handleVideoChange(data.videoId);
-        } else if (data.type === "autoplay_change" && !isAdmin) {
-          setAutoplay(data.autoplay);
-        }
-      };
-    }
-
-    return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-      }
-    };
-  }, [socket, isAdmin, sendMessage, roomId, isPlaying, videoId]);
-
-  useEffect(() => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.play().catch((error) => {
-          console.error("Playback was prevented:", error);
-          setIsPlaying(false);
-        });
-      } else {
-        audioRef.current.pause();
-      }
-    }
-
-    // Set up sync interval for admin
-    if (isAdmin && isPlaying) {
-      syncIntervalRef.current = setInterval(sendSyncResponse, 1000);
-    } else if (syncIntervalRef.current) {
-      clearInterval(syncIntervalRef.current);
-    }
-
-    return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-      }
-    };
-  }, [isPlaying, isAdmin]);
-
-  useEffect(() => {
     if (audioRef.current) {
       audioRef.current.currentTime = initialCurrentTime;
     }
@@ -253,6 +202,57 @@ export default function Player({
     setVideoId(newVideoId);
     setCurrentTime(0);
   };
+
+  useEffect(() => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.play().catch((error) => {
+          console.error("Playback was prevented:", error);
+          setIsPlaying(false);
+        });
+      } else {
+        audioRef.current.pause();
+      }
+    }
+
+    // Set up sync interval for admin
+    if (isAdmin && isPlaying) {
+      syncIntervalRef.current = setInterval(sendSyncResponse, 1000);
+    } else if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
+    }
+
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+      }
+    };
+  }, [isPlaying, isAdmin]);
+
+  useEffect(() => {
+    if (socket) {
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === "seek" && !isAdmin) {
+          handleRemoteSeek(data.time);
+        } else if (data.type === "play_pause" && !isAdmin) {
+          handleRemotePlayPause(data.isPlaying);
+        } else if (data.type === "sync_response" && !isAdmin) {
+          handleSyncResponse(data);
+        } else if (data.type === "video_change") {
+          handleVideoChange(data.videoId);
+        } else if (data.type === "autoplay_change" && !isAdmin) {
+          setAutoplay(data.autoplay);
+        }
+      };
+    }
+
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+      }
+    };
+  }, [socket, isAdmin, sendMessage, roomId, isPlaying, videoId]);
 
   const handleAutoplayChange = (newAutoplay: boolean) => {
     if (isAdmin) {

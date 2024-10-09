@@ -28,7 +28,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <div className="min-h-screen bg-background text-foreground">
             <header className="container mx-auto p-4">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center select-none">
                 <h1
                   className="text-2xl font-bold hover:cursor-pointer"
                   onClick={() => router.replace("/")}
