@@ -26,7 +26,7 @@ const WebSocketContext = createContext<WebSocketContextType | undefined>(
   undefined
 );
 
-const WS_URL = "ws://192.168.1.108:8080/websocket"; // Replace with your WebSocket server URL
+const WS_URL = "ws://localhost:8080/websocket"; // Replace with your WebSocket server URL
 const RECONNECT_INTERVAL = 5000; // 5 seconds
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_SYNC_INTERVAL = 250; // Initial sync interval
